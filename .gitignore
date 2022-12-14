@@ -1,0 +1,8 @@
+data/
+*.pyc
+.env/
+*.swp
+.ipynb_checkpoints/
+models
+log/
+
