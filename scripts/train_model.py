@@ -111,6 +111,8 @@ parser.add_argument('--log_model_name', default='iep')
 parser.add_argument('--tb_prefix', default='IEP', type=str)
 parser.add_argument('--debug_flag', type=int, default=0)
 
+parser.add_argument('--data_cache_from_nas', type=str, default=None)
+
 class screen_and_file_logger(object):
     """
     print or logging both to screen and file. like `tee` cmd in shell.
@@ -585,4 +587,9 @@ def check_accuracy(args, program_generator, execution_engine, baseline_model, lo
 
 if __name__ == '__main__':
   args = parser.parse_args()
+  # quake prepare, use links to avoid specifying many input paths each time.
+  if not args.data_cache_from_nas in [None, 'None']:
+    ln_src = args.data_cache_from_nas
+    os.system(f'ln -s {ln_src} ./data')
+
   main(args)

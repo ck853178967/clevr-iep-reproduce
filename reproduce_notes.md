@@ -248,3 +248,14 @@ start check: (iter 1) train acc 0.209 val acc 0.212
 2.4G gpu mem cost, batch size 64
 -->
 
+```
+python scripts/train_model.py \
+  --model_type EE \
+  --program_generator_start_from /nas/coding/neural_symbolic/clevr-iep/log/202211241611_CLEVR_PG_18k/program_generator_18k.pt \
+  --num_iterations 100001 \
+  --checkpoint_path [log_path]/execution_engine.pt \
+  --log_model_name 202212141220_CLEVR_EE \
+  --log_path /nas/coding/neural_symbolic/clevr-iep/log/ \
+  --data_cache_from_nas /nas/coding/neural_symbolic/data_cache
+  
+```
