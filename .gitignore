@@ -3,6 +3,6 @@ data/
 .env/
 *.swp
 .ipynb_checkpoints/
-models
+/models
 log/
 
