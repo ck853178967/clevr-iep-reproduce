@@ -591,5 +591,9 @@ if __name__ == '__main__':
   if not args.data_cache_from_nas in [None, 'None']:
     ln_src = args.data_cache_from_nas
     os.system(f'ln -s {ln_src} ./data')
-
+  
+  # prepare iep module link
+  if not os.path.exists('scripts/iep'):
+    os.system(f'ln -s ../iep scripts/')
+ 
   main(args)
