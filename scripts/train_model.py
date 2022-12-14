@@ -593,7 +593,7 @@ if __name__ == '__main__':
     os.system(f'ln -s {ln_src} ./data')
   
   # prepare iep module link
-  if not os.path.exists('scripts/iep'):
-    os.system(f'ln -s ../iep scripts/')
+  # if not os.path.exists('scripts/iep'):
+  #   os.system(f'ln -s ../iep scripts/')
  
   main(args)
