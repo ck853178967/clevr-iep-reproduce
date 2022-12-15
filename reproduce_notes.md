@@ -246,8 +246,8 @@ start check: (iter 1) train acc 0.209 val acc 0.212
 
 1300 iter / ~0.5h on 1080, -> (infer) 10w iter around 2d
 2.4G gpu mem cost, batch size 64
--->
 
+quake cmd
 ```
 python scripts/train_model.py \
   --model_type EE \
@@ -259,3 +259,4 @@ python scripts/train_model.py \
   --data_cache_from_nas /nas/coding/neural_symbolic/data_cache
   
 ```
+-->
