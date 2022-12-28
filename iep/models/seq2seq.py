@@ -173,7 +173,7 @@ class Seq2Seq(nn.Module):
       if argmax:
         _, cur_output = probs.max(1)
       else:
-        cur_output = probs.multinomial() # Now N x 1
+        cur_output = probs.multinomial(num_samples=1).view(N,) # Now N x 1
       self.multinomial_outputs.append(cur_output)
       self.multinomial_probs.append(probs)
       cur_output_data = cur_output.data.cpu()
@@ -203,12 +203,27 @@ class Seq2Seq(nn.Module):
         mask = Variable(output_mask[:, t])
         probs.register_hook(gen_hook(mask))
 
-    for sampled_output in self.multinomial_outputs:
-      sampled_output.reinforce(reward)
-      grad_output.append(None)
-    torch.autograd.backward(self.multinomial_outputs, grad_output, retain_variables=True)
+    # for sampled_output in self.multinomial_outputs:
+      # sampled_output.reinforce(reward)
+      # grad_output.append(None)
+        
+    # torch.autograd.backward(self.multinomial_outputs, grad_output, retain_variables=True)
 
-
+    # losses = []
+    for i in range(len(self.multinomial_outputs)): # T_max in the batch
+        probs = self.multinomial_probs[i]
+        sampled_output = self.multinomial_outputs[i]
+        loss = -torch.log(probs.gather(dim=-1, index=sampled_output.view(-1, 1)))*reward
+        loss_scalar = loss.sum()
+        loss_scalar.backward(retain_graph=True)
+        # losses.append(loss.sum())
+        # grad_output.append(None)
+        # backward multi-times will accumulate (add) gradients, ref https://pytorch.org/docs/stable/generated/torch.Tensor.grad.html?highlight=tensor+grad#torch.Tensor.grad
+        # but in practice (without retrain graph), it will throw following error:
+        # RuntimeError: Trying to backward through the graph a second time, but the saved intermediate results have already been freed. Specify retain_graph=True when calling .backward() or autograd.grad() the first time.
+    # torch.autograd.backward(losses, grad_output, retain_graph=True)
+    
+        
 def logical_and(x, y):
   return x * y
 

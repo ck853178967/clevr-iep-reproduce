@@ -260,3 +260,67 @@ python scripts/train_model.py \
   
 ```
 -->
+
+#### rl finetune on clevr
+a. prepare trained pg and ee
+
+pg, saved log from pretrained [ns2022] folder, `/data/hanfei.ck/coding/clevr-iep/clevr-iep-fork/` `log/202211241611_CLEVR_PG_18k/program_generator_18k.pt`
+
+ee, dld from oss, trained weights on other machine, to `/data/hanfei.ck/coding/clevr-iep/saved_logs/202212201114_CLEVR_EE_1e-5_10w_resume/execution_engine.pt`
+
+b. finetune cmd
+
+```shell
+python scripts/train_model.py \
+  --model_type PG+EE \
+  --program_generator_start_from log/202211241611_CLEVR_PG_18k/program_generator_18k.pt \
+  --execution_engine_start_from /data/hanfei.ck/coding/clevr-iep/saved_logs/202212201114_CLEVR_EE_1e-5_10w_resume/execution_engine.pt \
+  --checkpoint_path [log_path]/joint_pg_ee.pt \
+  --log_model_name 202212281036_CLEVR_PGEE_RL \
+  --num_iterations 100001
+```
+
+check code before run. to do: add grad norm , para norm , grad distribution, and size.
+
+#### grad issues
+```
+scripts/train_model.py:398: UserWarning: The .grad attribute of a Tensor that is not a leaf Tensor is being accessed. Its .grad attribute won't be populated during autograd.backward(). If you indeed want the gradient for a non-leaf Tensor, use .retain_grad() on the non-leaf Tensor. If you access the non-leaf Tensor by mistake, make sure you access the leaf Tensor instead. See github.com/pytorch/pytorch/pull/30531 for more informations.
+```
+
+running rec
+```
+program_generator_all_grad_ratio_size: 2510009
+execution_engine_all_grad_ratio_size: 38892065 # this step is slow (when compute grads)
+```
+
+#### bugs
+##### multinomial
+```
+  File "/data/hanfei.ck/coding/clevr-iep/clevr-iep-fork/scripts/iep/models/seq2seq.py", line 176, in reinforce_sample
+    cur_output = probs.multinomial() # Now N x 1
+TypeError: multinomial() missing 1 required positional arguments: "num_samples"
+```
+
+-> `cur_output = probs.multinomial(num_samples=1).view(N,) # Now N x 1`
+
+##### reinforce
+```
+  File "/data/hanfei.ck/coding/clevr-iep/clevr-iep-fork/scripts/iep/models/seq2seq.py", line 207, in reinforce_backward
+    sampled_output.reinforce(reward)
+  File "/opt/conda/lib/python3.8/site-packages/torch/tensor.py", line 293, in reinforce
+    raise RuntimeError(trim(r"""reinforce() was removed.
+RuntimeError: reinforce() was removed.
+Use torch.distributions instead.
+See https://pytorch.org/docs/master/distributions.html
+```
+
+-> [temp, not sure]
+```python
+    for i in range(len(self.multinomial_outputs)): # T_max in the batch
+        probs = self.multinomial_probs[i]
+        sampled_output = self.multinomial_outputs[i]
+        loss = -torch.log(probs.gather(dim=-1, index=sampled_output.view(-1, 1)))*reward
+        loss_scalar = loss.sum()
+        loss_scalar.backward(retain_graph=True)
+```
+

@@ -236,6 +236,9 @@ def train_loop(args, train_loader, val_loader, writer): ##
         str(program_generator).replace('\n', ' \n\n'), ## make it less crowded.
     )
     
+    # for name, param_ in program_generator.named_parameters():
+    #     param_.retain_grad() ##
+    
   if args.model_type == 'EE' or args.model_type == 'PG+EE':
     execution_engine, ee_kwargs = get_execution_engine(args)
     ee_optimizer = torch.optim.Adam(execution_engine.parameters(),
@@ -247,6 +250,8 @@ def train_loop(args, train_loader, val_loader, writer): ##
         "Model summary/execution_engine",
         str(execution_engine).replace('\n', ' \n\n'), ## make it less crowded.
     )
+    # for name, param_ in execution_engine.named_parameters():
+    #     param_.retain_grad() ##
     
   if args.model_type in ['LSTM', 'CNN+LSTM', 'CNN+LSTM+SA']:
     baseline_model, baseline_kwargs = get_baseline_model(args)
@@ -392,11 +397,47 @@ def train_loop(args, train_loader, val_loader, writer): ##
         writer.add_scalar('{:s}/train_acc'.format(tb_prefix), train_acc, t)
         writer.add_scalar('{:s}/val_acc'.format(tb_prefix), val_acc, t)
         if program_generator is not None:
+            all_grad_ratio = torch.zeros((1,))
             for name, param_ in program_generator.named_parameters():
                 writer.add_histogram('program_generator_' + name, param_.clone().cpu().data.numpy(), t)
+                if param_.is_leaf and param_.grad is not None:
+                    writer.add_histogram(f'program_generator_{name}_grad', param_.grad.clone().cpu().numpy(), t)
+                    writer.add_histogram(f'program_generator_{name}_grad_ratio', param_.grad.clone().cpu().numpy()/param_.clone().cpu().data.numpy(), t)
+                    all_grad_ratio = torch.cat([all_grad_ratio, (param_.grad.clone().cpu()/param_.clone().cpu().data).view(-1,)], dim=0)
+            if len(all_grad_ratio[1:] > 0):
+                writer.add_histogram(f'program_generator_all_grad_ratio', all_grad_ratio[1:].numpy(), t)
+            running_stats_info = {
+                'program_generator_all_grad_ratio_min': all_grad_ratio.min().item(), # not use a[1:].min() because it may be empty sometimes
+                'program_generator_all_grad_ratio_max': all_grad_ratio.max().item(),
+                'program_generator_all_grad_ratio_mean': all_grad_ratio.mean().item(),
+                'program_generator_all_grad_ratio_l2norm': all_grad_ratio.norm(p=2).item(),
+                'program_generator_all_grad_ratio_size': all_grad_ratio.size(dim=0),
+            }
+            running_stats_text = json.dumps(running_stats_info)
+            writer.add_text(f'Running stats/program_generator_all_grad_ratio_stats', running_stats_text, t)
+            # screen info
+            print(f'program_generator_all_grad_ratio_size: {all_grad_ratio.size(dim=0)}')
+
         if execution_engine is not None:
+            all_grad_ratio = torch.zeros((1,))
             for name, param_ in execution_engine.named_parameters():
                 writer.add_histogram('execution_engine_' + name, param_.clone().cpu().data.numpy(), t)
+                if param_.is_leaf and param_.grad is not None:
+                    writer.add_histogram(f'execution_engine_{name}_grad', param_.grad.clone().cpu().numpy(), t)
+                    writer.add_histogram(f'execution_engine_{name}_grad_ratio', param_.grad.clone().cpu().numpy()/param_.clone().cpu().data.numpy(), t)
+                    all_grad_ratio = torch.cat([all_grad_ratio, (param_.grad.clone().cpu()/param_.clone().cpu().data).view(-1,)], dim=0)
+            if len(all_grad_ratio[1:] > 0):
+                writer.add_histogram(f'execution_engine_all_grad_ratio', all_grad_ratio[1:].numpy(), t)
+            running_stats_info = {
+                'execution_engine_all_grad_ratio_min': all_grad_ratio.min().item(),
+                'execution_engine_all_grad_ratio_max': all_grad_ratio.max().item(),
+                'execution_engine_all_grad_ratio_mean': all_grad_ratio.mean().item(),
+                'execution_engine_all_grad_ratio_l2norm': all_grad_ratio.norm(p=2).item(),
+                'execution_engine_all_grad_ratio_size': all_grad_ratio.size(dim=0),
+            }
+            running_stats_text = json.dumps(running_stats_info)
+            writer.add_text(f'Running stats/execution_engine_all_grad_ratio_stats', running_stats_text, t)
+            print(f'execution_engine_all_grad_ratio_size: {all_grad_ratio.size(dim=0)}')
         
         writer.flush()
         sys.stdout.flush()
